@@ -1,0 +1,1 @@
+# wp2static-addon-custom-crawling-storage
