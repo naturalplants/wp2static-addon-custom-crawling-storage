@@ -13,8 +13,11 @@ use WP2Static\WsLog;
 class Controller {
     public function run() : void {
         $this->hooks_before_activate();
-        $post_deploy_addons = Addons::getType('post_deploy');
-        if( array_filter($post_deploy_addons, fn($addon) => 'wp2static-addon-custom-crawling-storage' === $addon->slug)) {
+        $post_deploy_addons = Addons::getType( 'post_deploy' );
+        if ( array_filter(
+            $post_deploy_addons,
+            fn ( $addon ) => 'wp2static-addon-custom-crawling-storage' === $addon->slug
+        ) ) {
             $this->hooks_after_activate();
         }
     }
@@ -56,13 +59,13 @@ class Controller {
         );
         add_filter(
             'wp2static_siteinfo',
-            [$this, 'filterUploadPath'],
+            [ $this, 'filterUploadPath' ],
             15,
             1
         );
         add_filter(
             'wp2static_deleting_path_prefix',
-            [$this, 'filterDeletingPathPrefix'],
+            [ $this, 'filterDeletingPathPrefix' ],
             15,
             1
         );
@@ -116,7 +119,8 @@ class Controller {
             'perpetuatedStoragePath',
             '',
             'Perpetuated Storage Path',
-            'Specify a directory to copy back crawled files after the "post_deploy" action. Keep it blank to ignore.'
+            'Specify a directory to perpetuate crawled files after "post_deploy". 
+            Leave it blank to ignore.'
         );
 
         $wpdb->query( $query );
@@ -156,10 +160,10 @@ class Controller {
         $processed_site_path = SiteInfo::getPath( 'uploads' ) . 'wp2static-processed-site';
         $perpetuated_storage_path = self::getOptions()['perpetuatedStoragePath']->value;
         WsLog::l( 'Custom Crawling Storage Addon taking post deploy action.' );
-        $postDeployer = new PostDeployer();
-        $postDeployer->perpetuateFiles($processed_site_path, $perpetuated_storage_path);
-        WsLog::l(sprintf("Cleaning upload directory %s.", SiteInfo::getPath('uploads')));
-        FilesHelper::deleteDirWithFiles( SiteInfo::getPath('uploads') );
+        $post_deployer = new PostDeployer();
+        $post_deployer->perpetuateFiles( $processed_site_path, $perpetuated_storage_path );
+        WsLog::l( sprintf( 'Cleaning upload directory %s.', SiteInfo::getPath( 'uploads' ) ) );
+        FilesHelper::deleteDirWithFiles( SiteInfo::getPath( 'uploads' ) );
     }
 
     public static function createOptionsTable() : void {
@@ -256,7 +260,10 @@ class Controller {
      * @return mixed[] array of submenu pages
      */
     public static function addSubmenuPage( array $submenu_pages ) : array {
-        $submenu_pages['custom_crawling_storage'] = [ 'WP2StaticCustomCrawlingStorage\Controller', 'renderOptionPage'];
+        $submenu_pages['custom_crawling_storage'] = [
+            'WP2StaticCustomCrawlingStorage\Controller',
+            'renderOptionPage',
+        ];
 
         return $submenu_pages;
     }
@@ -315,20 +322,22 @@ class Controller {
             'Custom Crawling Storage Options',
             'manage_options',
             'wp2static-addon-custom-crawling-storage',
-            [ $this, 'renderOptionPage']
+            [ $this, 'renderOptionPage' ]
         );
     }
 
-    public function filterUploadPath( array $siteInfo ): array {
+    public function filterUploadPath( array $site_info ): array {
         $options = self::getOptions();
 
-        $siteInfo['uploads_path'] = $options['crawlingStoragePath']->value;
-        return $siteInfo;
+        $site_info['uploads_path'] = $options['crawlingStoragePath']->value;
+        return $site_info;
     }
 
     public function filterDeletingPathPrefix( string $path ): string {
         $options = self::getOptions();
-        return $options['perpetuatedStoragePath']->value ?: $path;
+        return $options['perpetuatedStoragePath']->value
+            ? $options['perpetuatedStoragePath']->value
+            : $path;
     }
 }
 
