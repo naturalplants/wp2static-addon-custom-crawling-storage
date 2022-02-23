@@ -1,1 +1,4 @@
-# wp2static-addon-custom-crawling-storage
+# WP2Static Custom Crawling Storage Add-on
+
+Use custom directory as a crawling storage for WP2Static.
+
