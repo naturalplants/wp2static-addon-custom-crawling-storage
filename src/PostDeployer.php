@@ -45,24 +45,19 @@ class PostDeployer {
                 if ( ! is_string( $filename ) ) {
                     continue;
                 }
-                try {
-                    if ( ! file_exists( $destination_dir ) ) {
-                        if ( ! mkdir( $destination_dir, 0755, true ) ) {
-                            WsLog::l(
-                                sprintf(
-                                    'Fail to create the destination directory: %s.',
-                                    $destination_dir
-                                )
-                            );
-                            continue;
-                        }
-                    }
-                    if ( ! rename( $real_filepath, $destination_filepath ) ) {
-                        WsLog::l( "Fail to move to the perpetuate storage: {$real_filepath}." );
+                if ( ! file_exists( $destination_dir ) ) {
+                    if ( ! mkdir( $destination_dir, 0755, true ) ) {
+                        WsLog::l(
+                            sprintf(
+                                'Fail to create the destination directory: %s.',
+                                $destination_dir
+                            )
+                        );
                         continue;
                     }
-                } catch ( \Exception $e ) {
-                    WsLog::l( $e->getMessage() );
+                }
+                if ( ! rename( $real_filepath, $destination_filepath ) ) {
+                    WsLog::l( "Fail to move to the perpetuate storage: {$real_filepath}." );
                 }
             }
         }

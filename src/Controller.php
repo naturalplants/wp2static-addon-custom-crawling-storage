@@ -2,9 +2,6 @@
 
 namespace WP2StaticCustomCrawlingStorage;
 
-require_once plugin_dir_path( WP2STATIC_CUSTOM_STORAGE_PATH ) . 'wp2static/src/Addons.php';
-require_once plugin_dir_path( WP2STATIC_CUSTOM_STORAGE_PATH ) . 'wp2static/src/SiteInfo.php';
-
 use WP2Static\FilesHelper;
 use WP2Static\ProcessedSite;
 use WP2Static\SiteInfo;
@@ -68,12 +65,6 @@ class Controller {
         add_filter(
             'wp2static_processed_site_path',
             [ $this, 'filterProcessedPath' ],
-            15,
-            1
-        );
-        add_filter(
-            'wp2static_deleting_path_prefix',
-            [ $this, 'filterDeletingPathPrefix' ],
             15,
             1
         );
@@ -376,18 +367,15 @@ class Controller {
         );
     }
 
-    public function filterUploadPath( array $site_info ): array {
-        $options = self::getOptions();
-
-        $site_info['uploads_path'] = $options['crawlingStoragePath']->value;
-        return $site_info;
+    public function filterCrawledPath( string $path ): string {
+        $option = self::getValue( 'crawlingStoragePath' );
+        return $option ? $option : StaticSite::getPath();
     }
 
-    public function filterDeletingPathPrefix( string $path ): string {
-        $options = self::getOptions();
-        return $options['perpetuatedStoragePath']->value
-            ? $options['perpetuatedStoragePath']->value
-            : $path;
+    public function filterProcessedPath( string $path ): string {
+        $option = self::getValue( 'processingStoragePath' );
+
+        return $option ? $option : StaticSite::getPath();
     }
 }
 
