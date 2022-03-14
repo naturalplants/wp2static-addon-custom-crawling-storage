@@ -178,9 +178,9 @@ class Controller {
         $crawled_site_path = StaticSite::getPath();
         $processed_site_path = ProcessedSite::getPath();
         $perpetuated_storage_path_for_crawl =
-            self::getValue( 'perpetuatedStoragePathForCrawl' );
+            self::getValue( 'perpetuatedStoragePathForCrawledSite' );
         $perpetuated_storage_path_for_post_process =
-            self::getValue( 'perpetuatedStoragePathForPostProcess' );
+            self::getValue( 'perpetuatedStoragePathForProcessedSite' );
         WsLog::l( 'Custom Crawling Storage Addon taking post deploy action.' );
         $post_deployer = new PostDeployer();
         $post_deployer->perpetuateFiles(
@@ -191,8 +191,13 @@ class Controller {
             $processed_site_path,
             $perpetuated_storage_path_for_post_process
         );
-        WsLog::l( sprintf( 'Cleaning upload directory %s.', SiteInfo::getPath( 'uploads' ) ) );
-        FilesHelper::deleteDirWithFiles( SiteInfo::getPath( 'uploads' ) );
+        array_map(
+            function( $path ) {
+                WsLog::l( sprintf( 'Cleaning upload directory %s.', $path ) );
+                FilesHelper::deleteDirWithFiles( $path );
+            },
+            [ $crawled_site_path, $processed_site_path ]
+        );
     }
 
     public static function createOptionsTable() : void {

@@ -11,17 +11,25 @@ class PostDeployer {
     public function __construct() {}
 
     public function perpetuateFiles(
-        string $processed_site_path, string $perpetuate_storage_path = '' ) : void
+        string $source_path, string $taraget_path = '' ) : void
     {
         // check if dir exists
-        if ( ! is_dir( $processed_site_path ) || ! is_dir( $perpetuate_storage_path ) ) {
-            WsLog::w( 'No directory found to perpetuate.' );
+        if ( ! is_dir( $source_path ) || ! is_dir( $taraget_path ) ) {
+            WsLog::w(
+                sprintf(
+                    'One of directories are not found to perpetuate. 
+                    $source_path: %s, $taraget_path: %s',
+                    $source_path,
+                    $taraget_path
+                )
+            );
+
             return;
         }
 
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator(
-                $processed_site_path,
+                $source_path,
                 RecursiveDirectoryIterator::SKIP_DOTS
             )
         );
@@ -37,9 +45,9 @@ class PostDeployer {
                 }
 
                 // Standardise all paths to use / (Windows support)
-                $relative_filepath = str_replace( $processed_site_path, '', $real_filepath );
+                $relative_filepath = str_replace( $source_path, '', $real_filepath );
                 $destination_filepath =
-                    trailingslashit( $perpetuate_storage_path ) . ltrim( $relative_filepath, '/' );
+                    trailingslashit( $taraget_path ) . ltrim( $relative_filepath, '/' );
                 $destination_dir = dirname( $destination_filepath );
 
                 if ( ! is_string( $filename ) ) {
