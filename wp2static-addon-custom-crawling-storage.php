@@ -4,7 +4,7 @@
  * Plugin Name:       WP2Static Add-on: Custom Crawling Storage
  * Plugin URI:        https://wp2static.com
  * Description:       Use temporary directory on crawling for WP2Static.
- * Version:           1.0.0-dev
+ * Version:           1.1.0-dev
  * Requires PHP:      7.3
  * Author:            Natural Plants
  * Author URI:        https://www.n-plants.co.jp
@@ -17,7 +17,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 define( 'WP2STATIC_CUSTOM_STORAGE_PATH', plugin_dir_path( __FILE__ ) );
-define( 'WP2STATIC_CUSTOM_STORAGE_VERSION', '1.0.0-dev' );
+define( 'WP2STATIC_CUSTOM_STORAGE_VERSION', '1.1.0-dev' );
 
 if ( file_exists( WP2STATIC_CUSTOM_STORAGE_PATH . 'vendor/autoload.php' ) ) {
     require_once WP2STATIC_CUSTOM_STORAGE_PATH . 'vendor/autoload.php';

@@ -2,12 +2,11 @@
 
 namespace WP2StaticCustomCrawlingStorage;
 
-require_once plugin_dir_path( WP2STATIC_CUSTOM_STORAGE_PATH ) . 'wp2static/src/Addons.php';
-require_once plugin_dir_path( WP2STATIC_CUSTOM_STORAGE_PATH ) . 'wp2static/src/SiteInfo.php';
-
 use WP2Static\FilesHelper;
+use WP2Static\ProcessedSite;
 use WP2Static\SiteInfo;
 use WP2static\Addons;
+use WP2Static\StaticSite;
 use WP2Static\WsLog;
 
 class Controller {
@@ -58,14 +57,14 @@ class Controller {
             2
         );
         add_filter(
-            'wp2static_siteinfo',
-            [ $this, 'filterUploadPath' ],
+            'wp2static_crawled_site_path',
+            [ $this, 'filterCrawledPath' ],
             15,
             1
         );
         add_filter(
-            'wp2static_deleting_path_prefix',
-            [ $this, 'filterDeletingPathPrefix' ],
+            'wp2static_processed_site_path',
+            [ $this, 'filterProcessedPath' ],
             15,
             1
         );
@@ -99,31 +98,50 @@ class Controller {
 
         $table_name = $wpdb->prefix . 'wp2static_addon_custom_crawling_storage_options';
         $upload_path_and_url = wp_upload_dir();
+        $site_id = get_current_blog_id();
+        $crawled_site_path = 'wp2static-crawled-site';
+        $processed_site_path = 'wp2static-processed-site';
+        $queries = [];
 
         $query_string =
             "INSERT IGNORE INTO $table_name (name, value, label, description) " .
             'VALUES (%s, %s, %s, %s);';
 
-        $query = $wpdb->prepare(
+        $queries[] = $wpdb->prepare(
             $query_string,
             'crawlingStoragePath',
-            trailingslashit( $upload_path_and_url['basedir'] ),
+            "/tmp/wp2static/sites/{$site_id}/{$crawled_site_path}",
             'Crawling Storage Path',
-            'Specify a directory for the crawler to save static files.'
+            'Specify a directory for the crawler to save static files at `crawl` job.'
         );
 
-        $wpdb->query( $query );
-
-        $query = $wpdb->prepare(
+        $queries[] = $wpdb->prepare(
             $query_string,
-            'perpetuatedStoragePath',
-            '',
-            'Perpetuated Storage Path',
+            'processingStoragePath',
+            "/tmp/wp2static/sites/{$site_id}/{$processed_site_path}",
+            'Processing Storage Path',
+            'Specify a directory for the processor to save static files at `post_process` job.'
+        );
+
+        $queries[] = $wpdb->prepare(
+            $query_string,
+            'perpetuatedStoragePathForCrawledSite',
+            trailingslashit( $upload_path_and_url['basedir'] ) . $crawled_site_path,
+            'Perpetuated Storage Path for `crawl`',
             'Specify a directory to perpetuate crawled files after "post_deploy". 
             Leave it blank to ignore.'
         );
 
-        $wpdb->query( $query );
+        $queries[] = $wpdb->prepare(
+            $query_string,
+            'perpetuatedStoragePathForProcessedSite',
+            trailingslashit( $upload_path_and_url['basedir'] ) . $processed_site_path,
+            'Perpetuated Storage Path for `post_process`',
+            'Specify a directory to perpetuate post processed files after "post_deploy". 
+            Leave it blank to ignore.'
+        );
+
+        array_map( fn( $query ) => $wpdb->query( $query ), $queries );
 
     }
 
@@ -157,13 +175,29 @@ class Controller {
 
 
     public function postDeploy() : void {
-        $processed_site_path = SiteInfo::getPath( 'uploads' ) . 'wp2static-processed-site';
-        $perpetuated_storage_path = self::getOptions()['perpetuatedStoragePath']->value;
+        $crawled_site_path = StaticSite::getPath();
+        $processed_site_path = ProcessedSite::getPath();
+        $perpetuated_storage_path_for_crawl =
+            self::getValue( 'perpetuatedStoragePathForCrawledSite' );
+        $perpetuated_storage_path_for_post_process =
+            self::getValue( 'perpetuatedStoragePathForProcessedSite' );
         WsLog::l( 'Custom Crawling Storage Addon taking post deploy action.' );
         $post_deployer = new PostDeployer();
-        $post_deployer->perpetuateFiles( $processed_site_path, $perpetuated_storage_path );
-        WsLog::l( sprintf( 'Cleaning upload directory %s.', SiteInfo::getPath( 'uploads' ) ) );
-        FilesHelper::deleteDirWithFiles( SiteInfo::getPath( 'uploads' ) );
+        $post_deployer->perpetuateFiles(
+            $crawled_site_path,
+            $perpetuated_storage_path_for_crawl
+        );
+        $post_deployer->perpetuateFiles(
+            $processed_site_path,
+            $perpetuated_storage_path_for_post_process
+        );
+        array_map(
+            function( $path ) {
+                WsLog::l( sprintf( 'Cleaning upload directory %s.', $path ) );
+                FilesHelper::deleteDirWithFiles( $path );
+            },
+            [ $crawled_site_path, $processed_site_path ]
+        );
     }
 
     public static function createOptionsTable() : void {
@@ -283,8 +317,20 @@ class Controller {
 
         $wpdb->update(
             $table_name,
-            [ 'value' => sanitize_text_field( $_POST['perpetuatedStoragePath'] ) ],
-            [ 'name' => 'perpetuatedStoragePath' ]
+            [ 'value' => sanitize_text_field( $_POST['perpetuatedStoragePathForCrawledSite'] ) ],
+            [ 'name' => 'perpetuatedStoragePathForCrawledSite' ]
+        );
+
+        $wpdb->update(
+            $table_name,
+            [ 'value' => sanitize_text_field( $_POST['processingStoragePath'] ) ],
+            [ 'name' => 'processingStoragePath' ]
+        );
+
+        $wpdb->update(
+            $table_name,
+            [ 'value' => sanitize_text_field( $_POST['perpetuatedStoragePathForProcessedSite'] ) ],
+            [ 'name' => 'perpetuatedStoragePathForProcessedSite' ]
         );
 
         wp_safe_redirect( admin_url( 'admin.php?page=wp2static-addon-custom-crawling-storage' ) );
@@ -326,18 +372,15 @@ class Controller {
         );
     }
 
-    public function filterUploadPath( array $site_info ): array {
-        $options = self::getOptions();
-
-        $site_info['uploads_path'] = $options['crawlingStoragePath']->value;
-        return $site_info;
+    public function filterCrawledPath( string $path ): string {
+        $option = self::getValue( 'crawlingStoragePath' );
+        return $option ? $option : StaticSite::getPath();
     }
 
-    public function filterDeletingPathPrefix( string $path ): string {
-        $options = self::getOptions();
-        return $options['perpetuatedStoragePath']->value
-            ? $options['perpetuatedStoragePath']->value
-            : $path;
+    public function filterProcessedPath( string $path ): string {
+        $option = self::getValue( 'processingStoragePath' );
+
+        return $option ? $option : StaticSite::getPath();
     }
 }
 
