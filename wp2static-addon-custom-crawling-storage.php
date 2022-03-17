@@ -38,5 +38,4 @@ register_deactivation_hook(
     [ 'WP2StaticCustomCrawlingStorage\Controller', 'deactivate' ]
 );
 
-run_wp2static_addon_custom_crawling_storage();
-
+add_action('plugins_loaded', 'run_wp2static_addon_custom_crawling_storage', 10, 0);
