@@ -11,6 +11,10 @@
 
 依存ライブラリのインストール
 ```
+% git@github.com:naturalplants/wp2static-addon-custom-crawling-storage.git
+
+% cd wp2static-addon-custom-crawling-storage
+
 % composer install
 ```
 
